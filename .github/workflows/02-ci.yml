@@ -1,56 +1,49 @@
 # This is the first real CI workflow in the course.
 # It verifies a change by running tests on a fresh runner.
+
 name: 02 CI Workflow
 
 on:
-  # Run automatically when app code, tests, or this workflow file changes.
   push:
     paths:
       - "app/**"
       - "tests/**"
       - ".github/workflows/02-ci.yml"
 
-  # Allow a safe manual run before students trigger it with a code change.
   workflow_dispatch:
 
-  # Run automatically every day at 10:00 UTC.
   schedule:
     - cron: "0 10 * * *"
 
-
 jobs:
   run-tests:
-    # The runner is the temporary machine that executes the steps below.
     runs-on: ubuntu-latest
 
-    # Environment variable that stores the Python versions to test.
-    env:
-      PYTHON_VERSIONS: "3.11 3.12"
+    # Create two copies of the same job automatically
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
 
     steps:
       - name: Check out repository
-        # Download the repository contents onto the runner.
         uses: actions/checkout@v6
 
       - name: Check repo
-        # This confirms the repository files are available on the runner.
         run: ls
 
-      - name: Test Python versions
-        # Prepare Python on the runner.
-        # Note: setup-python expects one version, not multiple versions.
+      - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: ${{ env.PYTHON_VERSIONS }}
+          # Uses the current matrix version
+          python-version: ${{ matrix.python-version }}
 
       - name: Check python
-        # Verify the Python version installed on the runner.
         run: python --version
 
       - name: Run tests
-        # This is the key verification step in the CI workflow.
         run: python -m unittest discover -s tests -v
 
       - name: Show runner information
-        # Display runner execution time information.
-        run: date
+        run: |
+          echo "Python version: ${{ matrix.python-version }}"
+          date
