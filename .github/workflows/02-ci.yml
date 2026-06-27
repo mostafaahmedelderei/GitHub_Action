@@ -1,49 +1,58 @@
 # This is the first real CI workflow in the course.
-# It verifies a change by running tests on a fresh runner.
+# It verifies code changes by running tests and security scans on a fresh runner.
 
 name: 02 CI Workflow
 
 on:
-  push:
-    paths:
-      - "app/**"
-      - "tests/**"
-      - ".github/workflows/02-ci.yml"
+  # Run CI before merging pull requests into main.
+  pull_request:
+    branches:
+      - main
 
+  # Allow manual execution from Actions tab.
   workflow_dispatch:
 
-  schedule:
-    - cron: "0 10 * * *"
 
 jobs:
   run-tests:
+
+    # The runner is the temporary machine that executes the steps below.
     runs-on: ubuntu-latest
 
-    # Create two copies of the same job automatically
-    strategy:
-      matrix:
-        python-version: ["3.11", "3.12"]
-
     steps:
+
       - name: Check out repository
+        # Download repository files to the runner.
         uses: actions/checkout@v6
 
-      - name: Check repo
-        run: ls
 
       - name: Set up Python
+        # Prepare Python environment on the runner.
         uses: actions/setup-python@v6
         with:
-          # Uses the current matrix version
-          python-version: ${{ matrix.python-version }}
+          python-version: "3.12"
 
-      - name: Check python
-        run: python --version
 
       - name: Run tests
+        # Verify application correctness.
         run: python -m unittest discover -s tests -v
 
-      - name: Show runner information
-        run: |
-          echo "Python version: ${{ matrix.python-version }}"
-          date
+
+      - name: Run Trivy filesystem scan
+        # Scan the repository filesystem for vulnerabilities.
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: .
+          severity: CRITICAL,HIGH
+          exit-code: 1
+
+
+      - name: Run Trivy Dockerfile scan
+        # Scan Dockerfile and container configuration issues.
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: config
+          scan-ref: Dockerfile
+          severity: CRITICAL,HIGH
+          exit-code: 1
