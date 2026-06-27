@@ -22,12 +22,27 @@ jobs:
         # Download the repository contents onto the runner.
         uses: actions/checkout@v6
 
+      - name: check repo
+        # This is the key verification step in the CI workflow.
+        run: ls
+
       - name: Set up Python
         # Prepare Python on the runner. This does not change the student laptop.
         uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
+      - name: check python
+        # This is the key verification step in the CI workflow.
+        run: python --version
+
+      
       - name: Run tests
         # This is the key verification step in the CI workflow.
         run: python -m unittest discover -s tests -v
+
+
+
+      - name: Show runner information
+        run: date
+        
