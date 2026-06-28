@@ -28,7 +28,7 @@ jobs:
   deploy-package:
 
     # Continue only when the build workflow succeeded.
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event.pull_request.merged == true }}
 
     runs-on: ubuntu-latest
 
