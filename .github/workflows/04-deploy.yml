@@ -3,9 +3,11 @@
 name: 04 Deploy Workflow
 
 on:
-  workflow_run:
-    workflows: ["03 Build Artifact Workflow"]
-    types: [completed]
+  pull_request:
+    branches:
+      - main
+    types:
+      - closed
 
 
 env:
