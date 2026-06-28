@@ -4,10 +4,9 @@ name: 04 Deploy Workflow
 
 on:
   workflow_run:
-    # Listen for the build workflow by name.
     workflows: ["03 Build Artifact Workflow"]
-    # Start when the build workflow has completed.
     types: [completed]
+
 
 env:
   IMAGE_NAME: tiny-health-app
@@ -17,19 +16,23 @@ env:
   CONTAINER_NAME: tiny-health-container
   APP_PORT: "8000"
 
+
 permissions:
-  # Read access is enough because this workflow only downloads artifacts and reads repo data.
   actions: read
   contents: read
 
+
 jobs:
   deploy-package:
+
     # Continue only when the build workflow succeeded.
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
-    # Use a fresh runner for the deployment simulation.
+
     runs-on: ubuntu-latest
 
+
     steps:
+
       - name: Download build artifact
         # Download the exact artifact produced by the build run.
         uses: actions/download-artifact@v4
@@ -40,48 +43,77 @@ jobs:
           run-id: ${{ github.event.workflow_run.id }}
           path: downloaded-artifact
 
+
       - name: Show downloaded files
-        # Quick visibility step so students can see what arrived from the build.
         run: ls -R downloaded-artifact
 
+
       - name: Load Docker image
-        # Turn the saved artifact file back into a Docker image.
+        # Restore the Docker image from the build artifact.
         run: docker load --input "downloaded-artifact/${IMAGE_TAR}"
 
+
       - name: Read image metadata from build artifact
-        # Read the exact built image reference that the build workflow saved.
+        # Read the exact image tag created by the build workflow.
         id: image-metadata
         run: |
           source "downloaded-artifact/${IMAGE_METADATA}"
+
           echo "image_tag=${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
           echo "image_reference=${IMAGE_REFERENCE}" >> "$GITHUB_OUTPUT"
 
-      - name: Show exact image reference
-        # Visibility step so students can see what exact package is being delivered.
-        run: echo "Deploying ${{ steps.image-metadata.outputs.image_reference }}"
+
+      - name: Show exact date-plus-run-id image tag
+        # Show the exact image reference recreated from the build run.
+        run: |
+          echo "Build Run ID:"
+          echo "${{ github.event.workflow_run.id }}"
+
+          echo "Image tag:"
+          echo "${{ steps.image-metadata.outputs.image_tag }}"
+
+          echo "Full image reference:"
+          echo "${{ steps.image-metadata.outputs.image_reference }}"
+
 
       - name: Start container
-        # Start the exact same tagged image that the build workflow created.
+        # Run the exact image created by the build workflow.
         run: |
           docker run -d \
             --name "${CONTAINER_NAME}" \
             -p "${APP_PORT}:8000" \
             "${{ steps.image-metadata.outputs.image_reference }}"
 
+
+      - name: Show running containers
+        # Display the deployed container.
+        run: docker ps
+
+
       - name: Smoke test deployed app
-        # Retry a few times because app startup can take a moment.
+        # Wait until the application becomes available.
         run: |
           for attempt in 1 2 3 4 5; do
             if curl --fail --silent "http://127.0.0.1:${APP_PORT}/health"; then
               exit 0
             fi
+
             echo "Waiting for app to become ready..."
             sleep 2
           done
+
           echo "App did not become ready in time."
           exit 1
 
+
+      - name: Print health response body
+        # Show the actual API response.
+        run: |
+          echo "Health response:"
+          curl --silent "http://127.0.0.1:${APP_PORT}/health"
+
+
       - name: Stop container
         if: always()
-        # Clean up even if an earlier step fails.
+        # Cleanup after deployment test.
         run: docker rm -f "${CONTAINER_NAME}" || true
