@@ -48,22 +48,46 @@ jobs:
         run: python -m unittest discover -s tests -v
 
 
-      - name: Run Trivy filesystem scan
-        # Scan the repository filesystem for vulnerabilities.
+      - name: Create artifact
+        # Package application files into an artifact.
+        run: |
+          mkdir artifact
+          cp -r app artifact/
+          cp -r tests artifact/
+          cp Dockerfile artifact/
+
+
+      - name: Upload artifact
+        # Store artifact so it can be used in later steps/jobs.
+        uses: actions/upload-artifact@v4
+        with:
+          name: application-artifact
+          path: artifact/
+
+
+      - name: Download artifact
+        # Download the artifact before scanning it.
+        uses: actions/download-artifact@v4
+        with:
+          name: application-artifact
+          path: downloaded-artifact/
+
+
+      - name: Run Trivy artifact filesystem scan
+        # Scan the created artifact instead of the source repository.
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: fs
-          scan-ref: .
+          scan-ref: downloaded-artifact/
           severity: CRITICAL,HIGH
           exit-code: 1
 
 
       - name: Run Trivy Dockerfile scan
-        # Scan Dockerfile and container configuration issues.
+        # Scan Dockerfile inside the artifact.
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: config
-          scan-ref: Dockerfile
+          scan-ref: downloaded-artifact/Dockerfile
           severity: CRITICAL,HIGH
           exit-code: 1
-          
